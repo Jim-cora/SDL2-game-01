@@ -1,0 +1,54 @@
+#ifndef scene_main_H
+#define scene_main_H
+
+#include "scene_base.h"
+#include "game_structure.h"
+#include "objects.h"
+#include <list>
+
+ class game;
+ 
+class scene_main : public SceneBase {
+public:
+    scene_main();
+    ~scene_main();
+    void update() override;
+    void render() override;
+    void init() override;    
+    void clean() override;
+    void handleEvent(SDL_Event *e) override;
+
+    void keyboardControl(); //键盘控制  
+    void bulletGenerate(); //子弹发射
+    void updateBullet();  //子弹刷新
+    void renderBullet(); //渲染子弹
+    void renderPlayer(); //渲染玩家
+
+    
+    void enemyGenerate(); //生成敌人
+    void updateEnemy(); //刷新敌人
+    void renderEnemy(); //渲染敌人
+    void enemyBulletGenerate(Enemy_Template* enemy); //生成敌人子弹
+    void updateEnemyBullet(); //刷新敌人子弹
+    void renderEnemyBullet(); //渲染敌人子弹
+    //计算子弹方向
+    SDL_FPoint bulletDirection(Enemy_Template* enemy); //计算子弹方向
+
+
+    Player player;  //创建玩家，在此场景中
+
+    Projectile_Player_Template projectile_player_template; //创建玩家子弹模板
+    std::list<Projectile_Player_Template*> projectile_player_list;  //创建子弹容器list
+
+    std::list<Enemy_Template*> enemy_list; //创建敌人容器list
+    Enemy_Template enemy_template; //创建敌人模板
+    
+    Projectile_Enemy_Template projectile_enemy_template; //创建敌人子弹模板
+    std::list<Projectile_Enemy_Template*> projectile_enemy_list; //创建敌人子弹容器list
+private:
+    game& game; //单例模式引用，必须写在私有第一位
+   
+
+};
+
+#endif // scene_main_H

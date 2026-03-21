@@ -1,0 +1,25 @@
+# 编译文件
+build/
+bin/
+.vscode/
+.idea/
+*.exe
+*.o
+*.obj
+*.pdb
+*.ilk
+*.idb
+
+
+
+# 依赖
+lib/
+*.dll
+
+#其他
+*.ico
+*.rc
+
+# 缓存
+.DS_Store
+Thumbs.db
