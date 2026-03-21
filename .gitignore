@@ -10,7 +10,8 @@ bin/
 *.ilk
 *.idb
 
-
+REDME.txt
+ 
 
 # 依赖
 lib/
