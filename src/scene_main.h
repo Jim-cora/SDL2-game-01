@@ -5,6 +5,7 @@
 #include "game_structure.h"
 #include "objects.h"
 #include <list>
+#include <map>
 
  class game;
  
@@ -22,6 +23,7 @@ public:
     void bulletGenerate(); //子弹发射
     void updateBullet();  //子弹刷新
     void renderBullet(); //渲染子弹
+    void updatePlayer(); //刷新玩家
     void renderPlayer(); //渲染玩家
 
     
@@ -31,6 +33,9 @@ public:
     void enemyBulletGenerate(Enemy_Template* enemy); //生成敌人子弹
     void updateEnemyBullet(); //刷新敌人子弹
     void renderEnemyBullet(); //渲染敌人子弹
+
+    void updateExplosion(); //刷新爆炸
+    void renderExplosion(); //渲染爆炸
     //计算子弹方向
     SDL_FPoint bulletDirection(Enemy_Template* enemy); //计算子弹方向
 
@@ -45,6 +50,9 @@ public:
     
     Projectile_Enemy_Template projectile_enemy_template; //创建敌人子弹模板
     std::list<Projectile_Enemy_Template*> projectile_enemy_list; //创建敌人子弹容器list
+
+    explosion_template explosion_base; //创建爆炸模板
+    std::list<explosion_template*> explosion_list; //创建爆炸容器list
 private:
     game& game; //单例模式引用，必须写在私有第一位
    

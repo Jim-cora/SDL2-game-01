@@ -28,7 +28,7 @@ void game::gameInit()
         isRunning = false;
     }
     //读取音频
-    Mix_Music* music = Mix_LoadMUS("game-packs/音乐/Venus.wav");
+    Mix_Music* music = Mix_LoadMUS("game-packs/音乐/Mars.wav"); //game-packs\音乐\Mars.wav
     
     // 初始化SDL_TTF字体子系统
 
@@ -158,8 +158,8 @@ void game::gameRun()
         }
 
         // print Info
-        std::cout << "deltaTime: " << deltaTime <<"\tReal FPS: " << 1/deltaTime
-                     <<"\tTime:" << SDL_GetTicks()/1000 << std::endl;
+        // std::cout << "deltaTime: " << deltaTime <<"\tReal FPS: " << 1/deltaTime
+        //              <<"\tTime:" << SDL_GetTicks()/1000 << std::endl;
 
     }
     

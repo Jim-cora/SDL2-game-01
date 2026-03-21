@@ -14,23 +14,30 @@ scene_main::~scene_main()
 void scene_main::update()
 {
     keyboardControl();
+    updatePlayer();
     updateBullet(); //更新玩家子弹
 
     updateEnemy(); //生成敌人
     updateEnemyBullet(); //更新敌人子弹
 
+    updateExplosion(); //更新爆炸效果
+
 }
 
 void scene_main::render() 
 {
-    //场景 渲染玩家
-    renderPlayer();
+    if(!player.isDead){
+        //场景 渲染玩家
+        renderPlayer();
+    }
     //渲染子弹
     renderBullet();
     //渲染敌人
     renderEnemy();
     //渲染敌人子弹
     renderEnemyBullet();
+    //渲染爆炸效果
+    renderExplosion(); 
 
 }
 
@@ -43,19 +50,6 @@ void scene_main::keyboardControl()
     if(player.isDead) return;        //如果玩家死亡，则不处理键盘事件
 
     auto key_state = SDL_GetKeyboardState(NULL); //获取键盘状态
-    //============================== 限制玩家位置 ===================================//
-    if (player.position.x < 0){
-        player.position.x = 0;
-    }
-    if (player.position.x > game.getWindowWidth() - player.width){
-        player.position.x = static_cast<float>(game.getWindowWidth() - player.width);
-    }
-    if (player.position.y < 0){
-        player.position.y = 0;
-    }
-    if (player.position.y > game.getWindowHeight() - player.height){
-        player.position.y = static_cast<float>(game.getWindowHeight() - player.height);
-    }
 
     //发射子弹
     if (key_state[SDL_SCANCODE_SPACE]){
@@ -64,7 +58,6 @@ void scene_main::keyboardControl()
             bulletGenerate();
             projectile_player_template.lastCoolTime = SDL_GetTicks();
         }
-        
     }
     //=========================== 控制玩家位置上下左右 ================================//
     if (key_state[SDL_SCANCODE_W] || key_state[SDL_SCANCODE_UP]){
@@ -83,6 +76,7 @@ void scene_main::keyboardControl()
 
 void scene_main::bulletGenerate()
 {
+    if (player.isDead) return;        //如果玩家死亡，则不生成子弹
     // Projectile_Player_Template bullet_p;
     auto bullet = new Projectile_Player_Template(projectile_player_template); //使用动态内存分配创建
     bullet->position.x = player.position.x + player.width / 2.0f - bullet->width / 2.0f; //子弹位置居中
@@ -96,13 +90,32 @@ void scene_main::updateBullet()
     //用迭代器更新容器子弹
     int margin = 40;    //子弹消失的边界
     for (auto iter = projectile_player_list.begin(); iter != projectile_player_list.end();){
-           auto bullet = *iter;
+           auto &bullet = *iter;
             bullet->position.y -= game.getDeltaTime() * bullet->speed; //子弹向上移动
             if (bullet->position.y + margin < 0){
                 delete bullet;
                 iter = projectile_player_list.erase(iter); //删除子弹
             }else{
-                iter++; //手动更新迭代器
+                //遍历敌人
+                bool hit_flag = false;
+                for(auto &enemy : enemy_list){
+                    SDL_Rect rect_bullet = {static_cast<int>(bullet->position.x),
+                                            static_cast<int>(bullet->position.y),
+                                            bullet->width,  
+                                            bullet->height};
+                    SDL_Rect rect_enemy = {static_cast<int>(enemy->position.x),
+                                            static_cast<int>(enemy->position.y),
+                                            enemy->width,
+                                            enemy->height};
+                    if (SDL_HasIntersection(&rect_bullet, &rect_enemy)){
+                        enemy->health -= bullet->damage;
+                        delete bullet;
+                        iter = projectile_player_list.erase(iter); //删除子弹
+                        hit_flag = true;
+                        break; //跳出循环
+                    }
+                }
+                if (!hit_flag) iter++; //手动更新迭代器
             }
     }
 }
@@ -116,6 +129,40 @@ void scene_main::renderBullet()
                                         bullet->height};
 
         SDL_RenderCopy(game.getRenderer(), bullet->texture, NULL, &rect);
+    }
+}
+
+void scene_main::updatePlayer()
+{
+    if (player.isDead) return; //如果玩家死亡，则不渲染
+
+    if(player.health <= 0){
+
+        player.isDead = true;
+        //TODO: 游戏结束
+        //explode player
+        auto explode = new explosion_template(explosion_base);
+        explode->position.x = player.position.x + player.width / 2.0f - explode->frame_width * 2 / 2.0f;
+        explode->position.y = player.position.y + player.height / 2.0f - explode->frame_height * 2 / 2.0f;
+        explode->startTime = SDL_GetTicks();
+        explode->current_frame = 0; //从第一帧开始播放
+        explosion_list.push_back(explode);
+        
+        return;
+    }
+
+    //============================== 限制玩家位置 ===================================//
+    if (player.position.x < 0){
+        player.position.x = 0;
+    }
+    if (player.position.x > game.getWindowWidth() - player.width){
+        player.position.x = static_cast<float>(game.getWindowWidth() - player.width);
+    }
+    if (player.position.y < 0){
+        player.position.y = 0;
+    }
+    if (player.position.y > game.getWindowHeight() - player.height){
+        player.position.y = static_cast<float>(game.getWindowHeight() - player.height);
     }
 }
 
@@ -151,18 +198,46 @@ void scene_main::updateEnemy()
     }
     //更新敌人
     for (auto iter = enemy_list.begin(); iter != enemy_list.end();){
-        auto enemy = *iter;
+        auto &enemy = *iter;
         enemy->position.y += game.getDeltaTime() * enemy->speed;
         if (enemy->position.y > game.getWindowHeight()){
             delete enemy;
             iter = enemy_list.erase(iter);  
         }else{
+            if (!player.isDead){
+                //检测碰撞
+                SDL_Rect enemy_rect = {static_cast<int>(enemy->position.x),
+                                        static_cast<int>(enemy->position.y),
+                                                enemy->width,
+                                                enemy->height};
+                SDL_Rect player_rect = {static_cast<int>(player.position.x),
+                                        static_cast<int>(player.position.y),
+                                                player.width,
+                                                player.height}; 
+                if (SDL_HasIntersection(&enemy_rect, &player_rect)){
+                    player.health -= 1;
+                    enemy->health = 0;
+                }
+            }
+            if(enemy->health <= 0){
+                //敌人爆炸
+                auto explode = new explosion_template(explosion_base);
+                explode->position.x = enemy->position.x + enemy->width / 2.0f - explode->frame_width * 2 / 2.0f;
+                explode->position.y = enemy->position.y + enemy->height / 2.0f - explode->frame_height * 2 / 2.0f;
+                explode->startTime = SDL_GetTicks();
+                explode->current_frame = 0; //从第一帧开始播放
+                explosion_list.push_back(explode); //加入爆炸列表
+                delete enemy;
+                iter = enemy_list.erase(iter);
+                continue;
+            
+            }
             //发射子弹
-            if (current_time - enemy->lastCoolTime > enemy->coolDown){
+            if (current_time - enemy->lastCoolTime > enemy->coolDown && player.isDead == false){
                 enemyBulletGenerate(enemy);
                 enemy->lastCoolTime = current_time;
             }
-
+            
             ++iter;
         }
     }
@@ -196,17 +271,32 @@ void scene_main::updateEnemyBullet()
 {
     int margin = 30;
     for (auto iter = projectile_enemy_list.begin(); iter != projectile_enemy_list.end();){
-        auto bullet = *iter;
+        auto &bullet = *iter;
         if (bullet->position.y > game.getWindowHeight() || 
             bullet->position.y < -(bullet->height) ||
             bullet->position.x > game.getWindowWidth() || bullet->position.x < -margin){
             delete bullet;
             iter = projectile_enemy_list.erase(iter);
         }else{
+            //检测碰撞
+            SDL_Rect bullet_rect = {static_cast<int>(bullet->position.x),
+                                    static_cast<int>(bullet->position.y),
+                                            bullet->width,
+                                            bullet->height};    
+            SDL_Rect player_rect = {static_cast<int>(player.position.x),
+                                    static_cast<int>(player.position.y),
+                                            player.width,
+                                            player.height}; 
+            if (SDL_HasIntersection(&bullet_rect, &player_rect) && player.isDead == false){
+                player.health -= 1;
+                delete bullet;
+                iter = projectile_enemy_list.erase(iter);
+                continue;
+            }
             //更新子弹
             bullet->position.x += bullet->direction.x * bullet->speed * game.getDeltaTime();
             bullet->position.y += bullet->direction.y * bullet->speed * game.getDeltaTime();
-            iter++;
+            ++iter; 
         }
     }
 }
@@ -223,6 +313,43 @@ void scene_main::renderEnemyBullet()
         auto angle = atan2(bullet->direction.y, bullet->direction.x) * 180.0f / M_PI - 90.0f;
         SDL_RenderCopyEx(game.getRenderer(), bullet->texture, NULL, &bullet_rect, angle, NULL, SDL_FLIP_NONE);
     }
+}
+
+void scene_main::updateExplosion()
+{
+    for(auto iter = explosion_list.begin(); iter != explosion_list.end();){
+        auto &explode = *iter;
+        auto current_time = SDL_GetTicks();
+        auto elapsed_time = (current_time - explode->startTime) / 1000.0f;
+        explode->current_frame = static_cast<int>(elapsed_time * explode->fps);
+        if(explode->current_frame >= explode->total_frames){
+            //爆炸结束
+            delete explode;
+            iter = explosion_list.erase(iter);
+            continue;
+        }
+        ++iter;
+        std::cout << "current_frame: " << explode->current_frame << std::endl;
+    }
+}
+
+void scene_main::renderExplosion()
+{
+    for (auto &explode : explosion_list){
+        // 爆炸特效4*4序列帧
+        SDL_Rect src_rect = {explode->frame_width * (explode->current_frame % (explode->width / explode->frame_width)), 
+                            explode->frame_height * (explode->current_frame / (explode->width / explode->frame_width)),
+                            explode->frame_width,
+                            explode->frame_height}; //源矩形
+
+        SDL_Rect dst_rect = {static_cast<int>(explode->position.x), 
+                            static_cast<int>(explode->position.y),
+                                        explode->frame_width * 2,
+                                        explode->frame_height * 2}; //目标矩形
+        SDL_RenderCopy(game.getRenderer(), explode->texture, &src_rect, &dst_rect);
+
+    }
+
 }
 
 SDL_FPoint scene_main::bulletDirection(Enemy_Template *enemy)
@@ -289,6 +416,22 @@ void scene_main::init()
     projectile_enemy_template.width /= 3;
     projectile_enemy_template.height /= 3;
 
+    //初始化爆炸基础版 xpld1 4*4
+    explosion_base.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\explosion\\xpld1.jpg");//game-packs\explosion\xpld1.jpg
+    SDL_QueryTexture(explosion_base.texture,
+                    NULL,
+                    NULL,
+                    &explosion_base.width,
+                    &explosion_base.height
+                    );
+    explosion_base.frame_height = explosion_base.height / 4; //一帧高度
+    explosion_base.frame_width = explosion_base.width / 4;
+    explosion_base.total_frames = 16; //总帧数
+    explosion_base.fps = 16; //帧率
+    //混合模式.加强显示效果
+    SDL_SetTextureBlendMode(explosion_base.texture, SDL_BLENDMODE_ADD);
+
+
 }
 void scene_main::clean()
 {
@@ -332,5 +475,17 @@ void scene_main::clean()
         }
     }
     projectile_enemy_list.clear(); //清空敌人子弹列表
+
+    //清理爆炸
+    if (explosion_base.texture != nullptr){
+        SDL_DestroyTexture(explosion_base.texture);
+    }
+    for (auto &explosion : explosion_list){
+        if (explosion != nullptr){
+            delete explosion;
+        }
+    }
+    explosion_list.clear(); //清空爆炸列表
+
 }
 
