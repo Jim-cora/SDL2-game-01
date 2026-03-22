@@ -10,13 +10,7 @@
  class game;
 
  //枚举图片资源类型
-enum class Bonus_TextureType {
-    extra_life,
-    extra_shield,
-    freeze_time,
-    extra_support,   //rocket help
-};
- 
+
 class scene_main : public SceneBase {
 public:
     scene_main();
@@ -71,6 +65,9 @@ public:
     std::map<Bonus_TextureType, SDL_Texture*> bonus_texture_map; //奖励图片资源库
     Item bonus_item; //创建奖励
     std::list<Item*> bonus_list; //创建奖励容器list 
+
+    //建立场景音效库map
+    std::map<SoundType, Mix_Chunk*> scene_sound_map; //场景音效库
 
 
 

@@ -22,11 +22,18 @@ void game::gameInit()
         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "IMG_Init Error: %s", IMG_GetError());
         isRunning = false;
     }
-    // 初始化SDL_MiXER子系统
+
+    //初始化mixer
+    if (Mix_Init(MIX_INIT_MP3 | MIX_INIT_FLAC | MIX_INIT_OGG) < 0){
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Mix_Init Error: %s", Mix_GetError());
+        isRunning = false;
+    }
+    //  初始化SDL音频子系统
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0){
         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Mix_OpenAudio Error: %s", Mix_GetError());
         isRunning = false;
     }
+
     //读取音频
     Mix_Music* music = Mix_LoadMUS("game-packs/音乐/Mars.wav"); //game-packs\音乐\Mars.wav
     
@@ -53,9 +60,15 @@ void game::gameInit()
         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SDL_CreateTexture Error: %s", SDL_GetError());
         isRunning = false;
     }
+    //BGtexture 颜色对比度调整
+    SDL_SetTextureColorMod(BGtexture, 200, 200, 200);
     
+    //设置channel 
+    Mix_AllocateChannels(64);
     //播放bg音乐
     Mix_PlayMusic(music, -1);
+    Mix_VolumeMusic(MIX_MAX_VOLUME / 8); 
+    Mix_Volume(-1, MIX_MAX_VOLUME / 8); // 设置音量
 }
 
 
@@ -72,7 +85,9 @@ void game::gameExit()
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    Mix_CloseAudio();
 
+    Mix_Quit();
     IMG_Quit();
     SDL_Quit();
 }

@@ -21,7 +21,7 @@ void scene_main::update()
     updateEnemyBullet(); //更新敌人子弹
 
     updateExplosion(); //更新爆炸效果
-    // updateBonus(); //更新道具
+    updateBonus(); //更新道具
 
 }
 
@@ -38,7 +38,7 @@ void scene_main::render()
     //渲染敌人子弹
     renderEnemyBullet();
     //渲染道具
-    // renderBonus();
+    renderBonus();
     //渲染爆炸效果
     renderExplosion(); 
 
@@ -86,6 +86,9 @@ void scene_main::bulletGenerate()
     bullet->position.y = player.position.y;
     //放入容器
     projectile_player_list.push_back(bullet);
+    //播放音效
+    Mix_PlayChannel(0, scene_sound_map[SoundType::Player_Shoot], 0);
+
 }
 
 void scene_main::updateBullet()
@@ -150,7 +153,8 @@ void scene_main::updatePlayer()
         explode->startTime = SDL_GetTicks();
         explode->current_frame = 0; //从第一帧开始播放
         explosion_list.push_back(explode);
-        
+        Mix_PlayChannel(0, scene_sound_map[SoundType::Enemy_base_Die], 0);
+        Mix_PlayChannel(0, scene_sound_map[SoundType::Player_Die], 0);
         return;
     }
 
@@ -187,6 +191,7 @@ void scene_main::enemyGenerate()
     enemy->position.x = gen_random.getRand() * (game.getWindowWidth() - enemy->width);
     enemy->position.y = static_cast<float>(- enemy->height);
     enemy_list.push_back(enemy);
+    
 
 }
 
@@ -194,7 +199,7 @@ void scene_main::updateEnemy()
 {
         //随机生成敌人
     auto current_time = SDL_GetTicks();
-    float rate = (0.1f / 60.0f) * (player.level);
+    float rate = (0.1f / 30.0f) * (player.level);
 
     if (gen_random.getRand() < rate){
         enemyGenerate();
@@ -230,9 +235,10 @@ void scene_main::updateEnemy()
                 explode->startTime = SDL_GetTicks();
                 explode->current_frame = 0; //从第一帧开始播放
                 explosion_list.push_back(explode); //加入爆炸列表
+                if(gen_random.getRand() < enemy->dropRate) ItemGenerate(enemy); //生成道具 0.5的概率
                 delete enemy;
                 iter = enemy_list.erase(iter); 
-                // ItemGenerate(enemy); //生成道具
+                Mix_PlayChannel(0, scene_sound_map[SoundType::Enemy_base_Die], 0); //播放音效
                 continue;
             
             }
@@ -268,6 +274,7 @@ void scene_main::enemyBulletGenerate(Enemy_Template* enemy)
         bullet->position.y = enemy->position.y + enemy->height;
         bullet->direction = bulletDirection(enemy);
         projectile_enemy_list.push_back(bullet);
+        Mix_PlayChannel(0, scene_sound_map[SoundType::Enemy_Shoot], 0);
 
 }
 
@@ -295,6 +302,7 @@ void scene_main::updateEnemyBullet()
                 player.health -= 1;
                 delete bullet;
                 iter = projectile_enemy_list.erase(iter);
+                Mix_PlayChannel(0, scene_sound_map[SoundType::Player_Hit], 0);
                 continue;
             }
             //更新子弹
@@ -363,12 +371,16 @@ void scene_main::ItemGenerate(Enemy_Template *enemy)
     // 随机生成概率
     int randType_num = static_cast<int>(gen_random.getRand() * 4); //[0, 4)
     auto rand_ang = (gen_random.getRand() * 2 * M_PI); //[0, 2pi]
+
+    std::cout << "randType_num: " << randType_num << "\t rand_ang:"<< rand_ang << std::endl;
     //物品设置
-    Bonus_TextureType type = static_cast<Bonus_TextureType>(randType_num % item->total_num); // 0-3
-    item->texture = bonus_texture_map[type]; //随机物品类型
+    item->type = static_cast<Bonus_TextureType>(randType_num % item->total_cls); // 0-3
+    // Bonus_TextureType type = static_cast<Bonus_TextureType>(randType_num % item->total_num); // 0-3
+    item->texture = bonus_texture_map[item->type]; //随机物品类型
+    SDL_SetTextureBlendMode(item->texture, SDL_BLENDMODE_ADD); //设置透明度
     SDL_QueryTexture(item->texture, NULL, NULL, &item->width, &item->height); //物品大小
-    item->width /= 1;
-    item->height /= 1;
+    item->width /= 3;
+    item->height /= 3;
     item->position.x = enemy->position.x + enemy->width / 2.0f - item->width / 2.0f;
     item->position.y = enemy->position.y + enemy->height / 2.0f - item->height / 2.0f;
     item->direction.x = static_cast<float>(cos(rand_ang));
@@ -381,11 +393,30 @@ void scene_main::updateBonus()
 {   
     for(auto iter = bonus_list.begin(); iter != bonus_list.end();){
         auto &bonus = *iter;
-        if (bonus->position.y > game::getInstance().getWindowHeight() || bonus->position.y < -bonus->height||
-            bonus->position.x > game::getInstance().getWindowWidth() || bonus->position.x < -bonus->width){
-            delete bonus;
-            iter = bonus_list.erase(iter);
-            continue; 
+        //更新物品位置
+        bonus->position.x += bonus->direction.x * bonus->speed * game.getDeltaTime();
+        bonus->position.y += bonus->direction.y * bonus->speed * game.getDeltaTime();
+
+        if(bonus->position.x > (game.getWindowWidth() - bonus->width) && bonus->bounceCount > 0){
+            bonus->direction.x = -bonus->direction.x;
+            bonus->bounceCount--;
+        }else if(bonus->position.x < 0 && bonus->bounceCount > 0){
+            bonus->direction.x = -bonus->direction.x;
+            bonus->bounceCount--;
+        }else if(bonus->position.y > (game.getWindowHeight() - bonus->height) && bonus->bounceCount > 0){
+            
+            bonus->direction.y = -bonus->direction.y;
+            bonus->bounceCount--;
+        }else if(bonus->position.y < 0 && bonus->bounceCount > 0){
+            bonus->direction.y = -bonus->direction.y;
+            bonus->bounceCount--;
+        }else{
+            if (bonus->position.y > game.getWindowHeight() || bonus->position.y < -bonus->height||
+                bonus->position.x > game.getWindowWidth() || bonus->position.x < -bonus->width){
+                delete bonus;
+                iter = bonus_list.erase(iter);
+                continue; 
+            }
         }
         //检测碰撞
         SDL_Rect bonus_rect = {static_cast<int>(bonus->position.x),
@@ -400,11 +431,10 @@ void scene_main::updateBonus()
             //碰撞检测
             delete bonus;
             iter = bonus_list.erase(iter);
+            Mix_PlayChannel(0, scene_sound_map[SoundType::Get_Bonus], 0);
             continue;
         }
-        //更新物品位置
-        bonus->position.x += bonus->direction.x * bonus->speed * game.getDeltaTime();
-        bonus->position.y += bonus->direction.y * bonus->speed * game.getDeltaTime();
+
         ++iter; 
     }
 }
@@ -442,12 +472,12 @@ SDL_FPoint scene_main::bulletDirection(Enemy_Template *enemy)
 void scene_main::init()
 {
     //初始化player
-    player.texture = IMG_LoadTexture(game::getInstance().getRenderer(), "game-packs\\other-asserts\\pics\\Example\\05.png");
+    player.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other-asserts\\pics\\Example\\05.png");
     SDL_QueryTexture(player.texture, NULL, NULL, &player.width, &player.height);
     player.width /= 3;
     player.height /= 3;
-    player.position.x = static_cast<float>(game::getInstance().getWindowWidth() / 2.0f - player.width / 2.0f);
-    player.position.y = static_cast<float>(game::getInstance().getWindowHeight()/1.0 - player.height/1.0);
+    player.position.x = static_cast<float>(game.getWindowWidth() / 2.0f - player.width / 2.0f);
+    player.position.y = static_cast<float>(game.getWindowHeight()/1.0 - player.height/1.0);
 
     //初始化 玩家子弹模板
     projectile_player_template.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other-asserts\\pics\\Bullets\\06.png");
@@ -494,21 +524,59 @@ void scene_main::init()
                     );
     explosion_base.frame_height = explosion_base.height / 4; //一帧高度
     explosion_base.frame_width = explosion_base.width / 4;
-    explosion_base.total_frames = 16; //总帧数
-    explosion_base.fps = 16; //帧率
+    explosion_base.total_frames = (explosion_base.height / explosion_base.frame_height) * \
+                                    (explosion_base.width / explosion_base.frame_width); //总帧数
+    // explosion_base.fps = 16; //帧率
     //混合模式.加强显示效果
     SDL_SetTextureBlendMode(explosion_base.texture, SDL_BLENDMODE_ADD);
 
-    //初始化效果图片资源  game-packs\texture\SpaceShooterPack\PNG\bonus_life.png
+    //================================初始化效果图片资源 =====================================
     bonus_texture_map[Bonus_TextureType::extra_life] = IMG_LoadTexture(game.getRenderer(), \
                                                         "game-packs/texture/SpaceShooterPack/PNG/bonus_life.png");
+    if (bonus_texture_map[Bonus_TextureType::extra_life] == nullptr){
+        std::cout << "Failed to load bonus texture! Error: " << SDL_GetError() << std::endl;
+    }
     bonus_texture_map[Bonus_TextureType::extra_shield] = IMG_LoadTexture(game.getRenderer(), \
-                                                        "game-packs/texture/SpaceShooterPack/PNG/bonus_shield.png");
+                                                    "game-packs/texture/SpaceShooterPack/PNG/bonus_shield.png");
+    if (bonus_texture_map[Bonus_TextureType::extra_shield] == nullptr){
+        std::cout << "Failed to load bonus texture! Error: " << SDL_GetError() << std::endl;
+    }
     bonus_texture_map[Bonus_TextureType::extra_support] = IMG_LoadTexture(game.getRenderer(), \
                                                         "game-packs/texture/SpaceShooterPack/PNG/support.png");
+    if (bonus_texture_map[Bonus_TextureType::extra_support] == nullptr){
+        std::cout << "Failed to load bonus texture! Error: " << SDL_GetError() << std::endl;
+    }
     bonus_texture_map[Bonus_TextureType::freeze_time] = IMG_LoadTexture(game.getRenderer(), \
                                                         "game-packs/texture/SpaceShooterPack/PNG/bonus_time.png");
+    if (bonus_texture_map[Bonus_TextureType::freeze_time] == nullptr){
+        std::cout << "Failed to load bonus texture! Error: " << SDL_GetError() << std::endl;
+    }
     
+    //=====================================初始化音效库=====================================
+    scene_sound_map[SoundType::Player_Shoot] = Mix_LoadWAV("game-packs/音乐/hit.mp3");  //1，4，9
+    if (scene_sound_map[SoundType::Player_Shoot] == nullptr){
+        std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
+    }
+    scene_sound_map[SoundType::Enemy_Shoot] = Mix_LoadWAV("game-packs/sounds/Pew__009.ogg");
+    if (scene_sound_map[SoundType::Enemy_Shoot] == nullptr){
+        std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
+    }
+    scene_sound_map[SoundType::Player_Hit] = Mix_LoadWAV("game-packs/sounds/Pew__005.ogg");
+    if (scene_sound_map[SoundType::Player_Hit] == nullptr){
+        std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
+    }
+    scene_sound_map[SoundType::Enemy_base_Die] = Mix_LoadWAV("game-packs/音乐/explosion.mp3");
+    if (scene_sound_map[SoundType::Enemy_base_Die] == nullptr){
+        std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
+    }
+    scene_sound_map[SoundType::Player_Die] = Mix_LoadWAV("game-packs/音乐/Warp Jingle.wav");
+    if (scene_sound_map[SoundType::Player_Die] == nullptr){
+        std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
+    }
+    scene_sound_map[SoundType::Get_Bonus] = Mix_LoadWAV("game-packs/点击音效/rollover1.wav");
+    if (scene_sound_map[SoundType::Get_Bonus] == nullptr){
+        std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
+    }
 }
 void scene_main::clean()
 {
@@ -563,6 +631,24 @@ void scene_main::clean()
         }
     }
     explosion_list.clear(); //清空爆炸列表
+
+    //清理效果图片资源
+    for (auto &bonus_texture : bonus_texture_map){
+        if (bonus_texture.second != nullptr){
+            SDL_DestroyTexture(bonus_texture.second);
+        }
+    }
+
+    bonus_texture_map.clear(); //清空效果图片资源列表
+
+    //清理音效库
+    for( auto &sound : scene_sound_map){
+        if (sound.second != nullptr){
+            Mix_FreeChunk(sound.second);
+        }
+    }
+    scene_sound_map.clear(); //清空音效库
+
 
 }
 
