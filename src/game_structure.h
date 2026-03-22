@@ -59,7 +59,7 @@ private:
     SceneBase* currentScene = nullptr;
 
     uint32_t FPS = 60;
-    float deltaTime = 0; // 每帧的时间间隔 小数
+    float deltaTime = 0; // 每帧的时间间隔 60 FPS 约 16.67ms
 
 
 };

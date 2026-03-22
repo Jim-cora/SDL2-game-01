@@ -9,7 +9,7 @@ public:
     RandomGenerator() {
         std::random_device rd;
         gen.seed(rd());
-        dis = std::uniform_real_distribution<float>(0.0f, 1.0f);
+        dis = std::uniform_real_distribution<float>(0.0f, 1.0f); // 生成0到1之间的随机浮点数
     }
     
     float getRand() {

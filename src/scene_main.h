@@ -8,6 +8,14 @@
 #include <map>
 
  class game;
+
+ //枚举图片资源类型
+enum class Bonus_TextureType {
+    extra_life,
+    extra_shield,
+    freeze_time,
+    extra_support,   //rocket help
+};
  
 class scene_main : public SceneBase {
 public:
@@ -34,8 +42,13 @@ public:
     void updateEnemyBullet(); //刷新敌人子弹
     void renderEnemyBullet(); //渲染敌人子弹
 
+
     void updateExplosion(); //刷新爆炸
     void renderExplosion(); //渲染爆炸
+
+    void ItemGenerate(Enemy_Template* enemy); //生成道具; //刷新道具
+    void updateBonus(); //刷新奖励
+    void renderBonus(); //渲染奖励
     //计算子弹方向
     SDL_FPoint bulletDirection(Enemy_Template* enemy); //计算子弹方向
 
@@ -53,6 +66,14 @@ public:
 
     explosion_template explosion_base; //创建爆炸模板
     std::list<explosion_template*> explosion_list; //创建爆炸容器list
+
+    //建立图片资源库map
+    std::map<Bonus_TextureType, SDL_Texture*> bonus_texture_map; //奖励图片资源库
+    Item bonus_item; //创建奖励
+    std::list<Item*> bonus_list; //创建奖励容器list 
+
+
+
 private:
     game& game; //单例模式引用，必须写在私有第一位
    

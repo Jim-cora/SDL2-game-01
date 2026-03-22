@@ -13,7 +13,7 @@ struct Player {
     int health = 3; //health of the player
     bool isDead = false; //玩家是否死亡
     int score = 0; //score of the player
-    int level = 1; //difficult level of the player
+    int level = 5; //difficult level of the player
     
 };
 
@@ -66,5 +66,17 @@ struct explosion_template {
     Uint32 fps = 10; //ms
 };
 
+struct Item{
+    SDL_Texture* texture;   //the item image
+    SDL_FPoint position = {0,0};    //x and y
+    SDL_FPoint direction = {0,0};  //
+    int width = 0;  //width of the image
+    int height = 0; //height of the image
+    int speed = 100;  //speed of the item
+    int type = 0; //type of the item
+    int total_num = 4; //total number of the bonus item
+
+
+};
 
 #endif // OBJECTS_H

@@ -21,6 +21,7 @@ void scene_main::update()
     updateEnemyBullet(); //更新敌人子弹
 
     updateExplosion(); //更新爆炸效果
+    // updateBonus(); //更新道具
 
 }
 
@@ -36,12 +37,14 @@ void scene_main::render()
     renderEnemy();
     //渲染敌人子弹
     renderEnemyBullet();
+    //渲染道具
+    // renderBonus();
     //渲染爆炸效果
     renderExplosion(); 
 
 }
 
-void scene_main::handleEvent(SDL_Event *e)
+void scene_main::handleEvent(SDL_Event *)
 {
 }
 
@@ -191,7 +194,7 @@ void scene_main::updateEnemy()
 {
         //随机生成敌人
     auto current_time = SDL_GetTicks();
-    float rate = (0.2f / 60.0f) * (player.level);
+    float rate = (0.1f / 60.0f) * (player.level);
 
     if (gen_random.getRand() < rate){
         enemyGenerate();
@@ -228,7 +231,8 @@ void scene_main::updateEnemy()
                 explode->current_frame = 0; //从第一帧开始播放
                 explosion_list.push_back(explode); //加入爆炸列表
                 delete enemy;
-                iter = enemy_list.erase(iter);
+                iter = enemy_list.erase(iter); 
+                // ItemGenerate(enemy); //生成道具
                 continue;
             
             }
@@ -352,6 +356,70 @@ void scene_main::renderExplosion()
 
 }
 
+// 生成物品 目前主要是 bonus_item
+void scene_main::ItemGenerate(Enemy_Template *enemy)
+{
+    auto item = new Item(bonus_item);
+    // 随机生成概率
+    int randType_num = static_cast<int>(gen_random.getRand() * 4); //[0, 4)
+    auto rand_ang = (gen_random.getRand() * 2 * M_PI); //[0, 2pi]
+    //物品设置
+    Bonus_TextureType type = static_cast<Bonus_TextureType>(randType_num % item->total_num); // 0-3
+    item->texture = bonus_texture_map[type]; //随机物品类型
+    SDL_QueryTexture(item->texture, NULL, NULL, &item->width, &item->height); //物品大小
+    item->width /= 1;
+    item->height /= 1;
+    item->position.x = enemy->position.x + enemy->width / 2.0f - item->width / 2.0f;
+    item->position.y = enemy->position.y + enemy->height / 2.0f - item->height / 2.0f;
+    item->direction.x = static_cast<float>(cos(rand_ang));
+    item->direction.y = static_cast<float>(sin(rand_ang)); //随机方向
+    item->speed = 50;
+    bonus_list.push_back(item); //物品加入容器
+}
+
+void scene_main::updateBonus()
+{   
+    for(auto iter = bonus_list.begin(); iter != bonus_list.end();){
+        auto &bonus = *iter;
+        if (bonus->position.y > game::getInstance().getWindowHeight() || bonus->position.y < -bonus->height||
+            bonus->position.x > game::getInstance().getWindowWidth() || bonus->position.x < -bonus->width){
+            delete bonus;
+            iter = bonus_list.erase(iter);
+            continue; 
+        }
+        //检测碰撞
+        SDL_Rect bonus_rect = {static_cast<int>(bonus->position.x),
+                                static_cast<int>(bonus->position.y),
+                                        bonus->width,
+                                        bonus->height};    
+        SDL_Rect player_rect = {static_cast<int>(player.position.x),
+                                static_cast<int>(player.position.y),    
+                                player.width,
+                                player.height};
+        if(SDL_HasIntersection(&bonus_rect, &player_rect)){
+            //碰撞检测
+            delete bonus;
+            iter = bonus_list.erase(iter);
+            continue;
+        }
+        //更新物品位置
+        bonus->position.x += bonus->direction.x * bonus->speed * game.getDeltaTime();
+        bonus->position.y += bonus->direction.y * bonus->speed * game.getDeltaTime();
+        ++iter; 
+    }
+}
+
+void scene_main::renderBonus()
+{
+    for(auto &bonus : bonus_list){
+        SDL_Rect dst_rect = {static_cast<int>(bonus->position.x),
+                            static_cast<int>(bonus->position.y),
+                            bonus->width,
+                            bonus->height};
+        SDL_RenderCopy(game.getRenderer(), bonus->texture, NULL, &dst_rect);
+    }
+}
+
 SDL_FPoint scene_main::bulletDirection(Enemy_Template *enemy)
 {
     auto y = 0.0f;
@@ -374,7 +442,7 @@ SDL_FPoint scene_main::bulletDirection(Enemy_Template *enemy)
 void scene_main::init()
 {
     //初始化player
-    player.texture = IMG_LoadTexture(game::getInstance().getRenderer(), "game-packs\\other asserts\\pics\\Example\\05.png");
+    player.texture = IMG_LoadTexture(game::getInstance().getRenderer(), "game-packs\\other-asserts\\pics\\Example\\05.png");
     SDL_QueryTexture(player.texture, NULL, NULL, &player.width, &player.height);
     player.width /= 3;
     player.height /= 3;
@@ -382,7 +450,7 @@ void scene_main::init()
     player.position.y = static_cast<float>(game::getInstance().getWindowHeight()/1.0 - player.height/1.0);
 
     //初始化 玩家子弹模板
-    projectile_player_template.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other asserts\\pics\\Bullets\\06.png");
+    projectile_player_template.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other-asserts\\pics\\Bullets\\06.png");
             // 08.png 大 黄子弹
             // 03/06.png 小  基础子弹
             // 01.png 小 冰弹
@@ -397,7 +465,7 @@ void scene_main::init()
     projectile_player_template.height /= 3;
 
     //初始化敌人模板
-    enemy_template.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other asserts\\ship-images\\1B.png");
+    enemy_template.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other-asserts\\ship-images\\1B.png");
     SDL_QueryTexture(enemy_template.texture,
                     NULL,
                     NULL,
@@ -407,7 +475,7 @@ void scene_main::init()
     enemy_template.height /= 3;
 
     //初始化敌人子弹
-    projectile_enemy_template.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other asserts\\pics\\bullet-1.png");
+    projectile_enemy_template.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\other-asserts\\pics\\bullet-1.png");
     SDL_QueryTexture(projectile_enemy_template.texture,
                     NULL,
                     NULL,
@@ -417,7 +485,7 @@ void scene_main::init()
     projectile_enemy_template.height /= 3;
 
     //初始化爆炸基础版 xpld1 4*4
-    explosion_base.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\explosion\\xpld1.jpg");//game-packs\explosion\xpld1.jpg
+    explosion_base.texture = IMG_LoadTexture(game.getRenderer(), "game-packs\\explosion\\xpld1.jpg");
     SDL_QueryTexture(explosion_base.texture,
                     NULL,
                     NULL,
@@ -431,7 +499,16 @@ void scene_main::init()
     //混合模式.加强显示效果
     SDL_SetTextureBlendMode(explosion_base.texture, SDL_BLENDMODE_ADD);
 
-
+    //初始化效果图片资源  game-packs\texture\SpaceShooterPack\PNG\bonus_life.png
+    bonus_texture_map[Bonus_TextureType::extra_life] = IMG_LoadTexture(game.getRenderer(), \
+                                                        "game-packs/texture/SpaceShooterPack/PNG/bonus_life.png");
+    bonus_texture_map[Bonus_TextureType::extra_shield] = IMG_LoadTexture(game.getRenderer(), \
+                                                        "game-packs/texture/SpaceShooterPack/PNG/bonus_shield.png");
+    bonus_texture_map[Bonus_TextureType::extra_support] = IMG_LoadTexture(game.getRenderer(), \
+                                                        "game-packs/texture/SpaceShooterPack/PNG/support.png");
+    bonus_texture_map[Bonus_TextureType::freeze_time] = IMG_LoadTexture(game.getRenderer(), \
+                                                        "game-packs/texture/SpaceShooterPack/PNG/bonus_time.png");
+    
 }
 void scene_main::clean()
 {
