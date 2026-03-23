@@ -67,7 +67,7 @@ void game::gameInit()
     Mix_AllocateChannels(64);
     //播放bg音乐
     Mix_PlayMusic(music, -1);
-    Mix_VolumeMusic(MIX_MAX_VOLUME / 8); 
+    Mix_VolumeMusic(MIX_MAX_VOLUME / 16); 
     Mix_Volume(-1, MIX_MAX_VOLUME / 8); // 设置音量
 }
 

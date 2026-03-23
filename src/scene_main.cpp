@@ -153,8 +153,9 @@ void scene_main::updatePlayer()
         explode->startTime = SDL_GetTicks();
         explode->current_frame = 0; //从第一帧开始播放
         explosion_list.push_back(explode);
-        Mix_PlayChannel(0, scene_sound_map[SoundType::Enemy_base_Die], 0);
-        Mix_PlayChannel(0, scene_sound_map[SoundType::Player_Die], 0);
+        Mix_PlayChannel(-1, scene_sound_map[SoundType::Enemy_base_Die], 0);
+
+        Mix_PlayChannel(1, scene_sound_map[SoundType::Player_Die], 0);
         return;
     }
 
@@ -238,7 +239,7 @@ void scene_main::updateEnemy()
                 if(gen_random.getRand() < enemy->dropRate) ItemGenerate(enemy); //生成道具 0.5的概率
                 delete enemy;
                 iter = enemy_list.erase(iter); 
-                Mix_PlayChannel(0, scene_sound_map[SoundType::Enemy_base_Die], 0); //播放音效
+                Mix_PlayChannel(-1, scene_sound_map[SoundType::Enemy_base_Die], 0); //播放音效
                 continue;
             
             }
@@ -274,7 +275,7 @@ void scene_main::enemyBulletGenerate(Enemy_Template* enemy)
         bullet->position.y = enemy->position.y + enemy->height;
         bullet->direction = bulletDirection(enemy);
         projectile_enemy_list.push_back(bullet);
-        Mix_PlayChannel(0, scene_sound_map[SoundType::Enemy_Shoot], 0);
+        Mix_PlayChannel(-1, scene_sound_map[SoundType::Enemy_Shoot], 0);
 
 }
 
@@ -302,7 +303,7 @@ void scene_main::updateEnemyBullet()
                 player.health -= 1;
                 delete bullet;
                 iter = projectile_enemy_list.erase(iter);
-                Mix_PlayChannel(0, scene_sound_map[SoundType::Player_Hit], 0);
+                Mix_PlayChannel(-1, scene_sound_map[SoundType::Player_Hit], 0);
                 continue;
             }
             //更新子弹
@@ -429,12 +430,27 @@ void scene_main::updateBonus()
                                 player.height};
         if(SDL_HasIntersection(&bonus_rect, &player_rect)){
             //碰撞检测
+            switch (bonus->type)
+            {
+                case Bonus_TextureType::extra_life:
+                    if (player.health >= player.max_health)
+                    {
+                        player.health = player.max_health;
+                    }else{
+                        player.health++;
+                    }
+                    break;
+                // case Bonus_TextureType::extra_shield:
+
+                // case Bonus_TextureType::extra_support:
+
+                // case Bonus_TextureType::freeze_time:     
+            }
             delete bonus;
             iter = bonus_list.erase(iter);
-            Mix_PlayChannel(0, scene_sound_map[SoundType::Get_Bonus], 0);
+            Mix_PlayChannel(-1, scene_sound_map[SoundType::Get_Bonus], 0);
             continue;
         }
-
         ++iter; 
     }
 }
@@ -561,7 +577,7 @@ void scene_main::init()
     if (scene_sound_map[SoundType::Enemy_Shoot] == nullptr){
         std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
     }
-    scene_sound_map[SoundType::Player_Hit] = Mix_LoadWAV("game-packs/sounds/Pew__005.ogg");
+    scene_sound_map[SoundType::Player_Hit] = Mix_LoadWAV("game-packs/sounds/Pew__006.ogg");
     if (scene_sound_map[SoundType::Player_Hit] == nullptr){
         std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
     }
@@ -573,7 +589,7 @@ void scene_main::init()
     if (scene_sound_map[SoundType::Player_Die] == nullptr){
         std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
     }
-    scene_sound_map[SoundType::Get_Bonus] = Mix_LoadWAV("game-packs/点击音效/rollover1.wav");
+    scene_sound_map[SoundType::Get_Bonus] = Mix_LoadWAV("game-packs/攻击音效-hits/hit30.mp3.flac");
     if (scene_sound_map[SoundType::Get_Bonus] == nullptr){
         std::cout << "Failed to load sound effect! Error: " << Mix_GetError() << std::endl;
     }

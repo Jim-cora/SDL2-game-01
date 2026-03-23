@@ -34,6 +34,7 @@ struct Player {
     int height = 0; //height of the image
     int speed = 150;  //speed of the player
     int health = 3; //health of the player
+    int max_health = 5; //shield of the player
     bool isDead = false; //玩家是否死亡
     int score = 0; //score of the player
     int level = 1; //difficult level of the player
@@ -62,7 +63,7 @@ struct Enemy_Template {
     int health = 2; //health of the enemy
     Uint32 coolDown = 2500; //ms
     Uint32 lastCoolTime = 0; //ms
-    float dropRate = 0.1; //probability of the enemy dropping a bonus item
+    float dropRate = 0.7f; //probability of the enemy dropping a bonus item
 };
 
 struct Projectile_Enemy_Template {
